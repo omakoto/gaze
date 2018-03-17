@@ -114,10 +114,17 @@ func (g *Gazer) showHeader() {
 }
 
 func (g *Gazer) RunLoop(times int) error {
-	for i := 0; i < times || times < 0; i++ {
+	if times == 0 {
+		return nil
+	}
+	for i := 0; ; {
 		err := g.RunOnce()
 		if err != nil {
 			return err
+		}
+		i++
+		if times > 0 && i >= times {
+			break
 		}
 		var realInterval time.Duration
 		if g.options.Precise {
@@ -137,7 +144,7 @@ func (g *Gazer) flush() error {
 }
 
 func (g *Gazer) Finish() {
-	fmt.Fprint(g.options.Writer, "\x1b[?25h") // Show cursor
+	fmt.Fprint(g.options.Writer, "\x1b[?25h\n") // Show cursor
 }
 
 func (g *Gazer) RunOnce() error {
