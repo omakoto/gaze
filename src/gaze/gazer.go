@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/omakoto/gaze/src/common"
-	"github.com/omakoto/gaze/src/gaze/buffer"
+	"github.com/omakoto/gaze/src/termio"
 	"golang.org/x/crypto/ssh/terminal"
 	"io"
 	"time"
@@ -27,7 +27,7 @@ type Gazer struct {
 	// nextExpectedTime is the time when the next run should start if the precise option is on.
 	nextExpectedTime time.Time
 
-	buffer *buffer.Buffer
+	buffer *termio.Buffer
 
 	// headerBuffer is a cached buffer to build the header line.
 	headerBuffer *bytes.Buffer
@@ -51,7 +51,7 @@ func NewGazer(options Options) *Gazer {
 		title:       options.GetDisplayCommand(),
 		execCommand: execCommand,
 
-		buffer:       buffer.NewBuffer(),
+		buffer:       termio.NewBuffer(),
 		headerBuffer: &bytes.Buffer{},
 		csiBuffer:    &bytes.Buffer{},
 
@@ -84,7 +84,7 @@ func getHeader(hbuf *bytes.Buffer, width int, interval time.Duration, now time.T
 	hbuf.WriteString(": ")
 	hbuf.WriteString(title)
 
-	padLen := width - timestampWidth - buffer.StringWidth(hbuf.String())
+	padLen := width - timestampWidth - termio.StringWidth(hbuf.String())
 	if padLen > 0 {
 		for i := 0; i < padLen; i++ {
 			hbuf.WriteByte(' ')

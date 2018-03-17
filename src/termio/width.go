@@ -1,4 +1,4 @@
-package buffer
+package termio
 
 import "github.com/mattn/go-runewidth"
 
