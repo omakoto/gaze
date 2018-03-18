@@ -25,8 +25,6 @@ type Gazer struct {
 	// nextExpectedTime is the time when the next run should start if the precise option is on.
 	nextExpectedTime time.Time
 
-	term *termio.Term
-
 	// headerBuffer is a cached buffer to build the header line.
 	headerBuffer *bytes.Buffer
 
@@ -46,6 +44,10 @@ func NewGazer(options Options) *Gazer {
 		return StartCommand(execCommand)
 	}
 	clock := common.NewClock()
+	err := termio.Init(options.Term, options.ForcedTerminalWidth, options.ForcedTerminalHeight)
+	if err != nil {
+		common.Fatalf("Unable to initialize terminal.")
+	}
 	return &Gazer{
 		options: options,
 		clock:   clock,
@@ -53,7 +55,6 @@ func NewGazer(options Options) *Gazer {
 		title:       options.GetDisplayCommand(),
 		execCommand: execCommand,
 
-		term:         termio.NewBuffer(options.Reader, options.Writer, 1, 1),
 		headerBuffer: &bytes.Buffer{},
 		csiBuffer:    &bytes.Buffer{},
 
@@ -67,8 +68,7 @@ func (g *Gazer) Reinit() error {
 	g.nextExpectedTime = g.nextExpectedTime.Add(g.options.Interval)
 	g.lastStartTime = g.clock.Now()
 
-	w, h := g.options.MustGetTerminalSize()
-	g.term.Clear(w, h)
+	termio.Clear()
 
 	return nil
 }
@@ -106,10 +106,10 @@ func getHeader(hbuf *bytes.Buffer, width int, interval time.Duration, now time.T
 }
 
 func (g *Gazer) showHeader() {
-	header := getHeader(g.headerBuffer, g.term.Width(), g.options.Interval, g.lastStartTime, g.title)
+	header := getHeader(g.headerBuffer, termio.Width(), g.options.Interval, g.lastStartTime, g.title)
 
-	g.term.WriteString(header)
-	g.term.NewLine()
+	termio.WriteString(header)
+	termio.NewLine()
 }
 
 func (g *Gazer) RunLoop(times int) error {
@@ -139,7 +139,7 @@ func (g *Gazer) RunLoop(times int) error {
 }
 
 func (g *Gazer) flush() error {
-	return g.term.Flush()
+	return termio.Flush()
 }
 
 func (g *Gazer) Finish() {
@@ -152,7 +152,7 @@ func (g *Gazer) RunOnce() error {
 	common.Check(err, "StartCommand() failed")
 	defer rd.Close()
 
-	if !g.options.NoTitle && g.term.Height() >= 2 {
+	if !g.options.NoTitle && termio.Height() >= 2 {
 		g.showHeader()
 	}
 
@@ -164,10 +164,8 @@ func (g *Gazer) RunOnce() error {
 func (g *Gazer) Render(baseReader io.ReadCloser) {
 	rd := bufio.NewReader(baseReader)
 
-	out := g.term
-
 	for {
-		if !out.CanWrite() {
+		if !termio.CanWrite() {
 			break
 		}
 		ch, _, err := rd.ReadRune()
@@ -175,7 +173,7 @@ func (g *Gazer) Render(baseReader io.ReadCloser) {
 			return
 		}
 		if ch == '\n' || ch == '\r' { // Just tread CR as NL.
-			if out.NewLine() {
+			if termio.NewLine() {
 				continue
 			}
 			break
@@ -183,21 +181,21 @@ func (g *Gazer) Render(baseReader io.ReadCloser) {
 		if ch != '\x1b' { // Not ESC?
 			if ch < 0x20 { // Control char?
 				if ch == '\t' {
-					out.Tab()
+					termio.Tab()
 					continue
 				}
-				if out.WriteRune('^') && out.WriteRune(rune('@'+ch)) {
+				if termio.WriteRune('^') && termio.WriteRune(rune('@'+ch)) {
 					continue
 				}
 				break
 			}
 			if ch == '\x7f' {
-				if out.WriteString("\\x7f") {
+				if termio.WriteString("\\x7f") {
 					continue
 				}
 				break
 			}
-			if out.WriteRune(ch) {
+			if termio.WriteRune(ch) {
 				continue
 			}
 			break
@@ -249,17 +247,17 @@ func (g *Gazer) Render(baseReader io.ReadCloser) {
 			ch, _, _ := rd.ReadRune()
 			b.WriteRune(ch)
 			if err == nil && ch == 'm' {
-				out.WriteZeroWidthString("\x1b[")
-				out.WriteZeroWidthBytes(b.Bytes())
+				termio.WriteZeroWidthString("\x1b[")
+				termio.WriteZeroWidthBytes(b.Bytes())
 			} else {
-				out.WriteZeroWidthString("\\x1b[")
-				out.WriteZeroWidthBytes(b.Bytes())
+				termio.WriteZeroWidthString("\\x1b[")
+				termio.WriteZeroWidthBytes(b.Bytes())
 			}
 			continue
 		}
 
 		// Just print an escape sequence as is.
-		if out.WriteString("^[") {
+		if termio.WriteString("^[") {
 			continue
 		}
 		break

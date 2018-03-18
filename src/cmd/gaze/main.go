@@ -44,10 +44,9 @@ func main() {
 		}
 
 		options := gaze.Options{}
-		options.Writer = os.Stdout
-		options.Reader = os.Stdin
-		options.TerminalWidth = *width
-		options.TerminalHeight = *height
+		options.Term = os.Stdout
+		options.ForcedTerminalWidth = *width
+		options.ForcedTerminalHeight = *height
 		options.CommandLine = args
 		options.Interval = time.Duration(float64(time.Second) * interval)
 		options.Precise = *precise

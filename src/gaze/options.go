@@ -2,10 +2,8 @@ package gaze
 
 import (
 	"bytes"
-	"github.com/omakoto/gaze/src/common"
 	"github.com/omakoto/zenlog-go/zenlog/shell"
-	"golang.org/x/crypto/ssh/terminal"
-	"io"
+	"os"
 	"time"
 )
 
@@ -52,11 +50,7 @@ import (
 */
 
 type Options struct {
-	// Writer is where output should go.
-	Writer io.Writer
-
-	// Reader is where gazer reads keyboard input.
-	Reader io.Reader
+	Term *os.File
 
 	// CommandLine is the command to execute.
 	CommandLine []string
@@ -79,8 +73,8 @@ type Options struct {
 	// NoTitle disables the header.
 	NoTitle bool
 
-	TerminalWidth  int
-	TerminalHeight int
+	ForcedTerminalWidth  int
+	ForcedTerminalHeight int
 }
 
 func (o *Options) GetExecCommand() []string {
@@ -112,14 +106,4 @@ func (o *Options) GetDisplayCommand() string {
 		buf.WriteString(shell.Escape(a))
 	}
 	return buf.String()
-}
-
-func (o *Options) MustGetTerminalSize() (width, height int) {
-	if o.TerminalWidth > 0 && o.TerminalHeight > 0 {
-		return o.TerminalWidth, o.TerminalHeight
-	}
-	w, h, err := terminal.GetSize(1)
-	common.Check(err, "Unable to get terminal size.")
-	return w, h
-
 }
