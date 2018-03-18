@@ -36,10 +36,10 @@ for test in *.t ; do
   diff --color=never -u "$expect" "$actual" >"$diff"
   rc=$?
   if (( $rc == 0 )) ; then
-    echo $'\e[32;1mpass'
+    echo $'\e[32;1mpass\e[0m'
     num_pass=$(( $num_pass + 1 ))
   else
-    echo $'\e[31;1mFAIL'
+    echo $'\e[31;1mFAIL\e[0m'
     num_fail=$(( $num_fail + 1 ))
   fi
 done
