@@ -32,5 +32,8 @@ Short|Long|Description
 -g|--chgexit|Exit when output from command changes.
 
 ## TODOs
- - Refresh on enter press.
- 
+ - Echo off, non-canonical mode
+ - Add keyboard controls
+   * Enter: refresh
+   * Space: pause / resume
+   * + and -: Increase / decrease interval.
