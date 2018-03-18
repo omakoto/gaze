@@ -64,6 +64,10 @@ func NewGazer(options Options) *Gazer {
 	}
 }
 
+func (g *Gazer) Finish() {
+	termio.Finish()
+}
+
 func (g *Gazer) Reinit() error {
 	g.nextExpectedTime = g.nextExpectedTime.Add(g.options.Interval)
 	g.lastStartTime = g.clock.Now()
@@ -116,6 +120,8 @@ func (g *Gazer) RunLoop(times int) error {
 	if times == 0 {
 		return nil
 	}
+	var pausing bool
+refresh:
 	for i := 0; ; {
 		err := g.RunOnce()
 		if err != nil {
@@ -125,24 +131,63 @@ func (g *Gazer) RunLoop(times int) error {
 		if times > 0 && i >= times {
 			break
 		}
-		var realInterval time.Duration
+		lastEndTime := g.clock.Now()
+
+		var nextTime time.Time
 		if g.options.Precise {
-			realInterval = time.Until(g.nextExpectedTime)
+			nextTime = g.nextExpectedTime
 		} else {
-			realInterval = g.options.Interval
+			nextTime = lastEndTime.Add(g.options.Interval)
 		}
-		if realInterval > 0 {
-			time.Sleep(realInterval)
+
+	delay:
+		for pausing || nextTime.After(g.clock.Now()) {
+			wait := time.Until(nextTime)
+			if pausing {
+				wait = time.Hour * 24 * 365 * 10 // 10 years.
+				g.showResumeHelp()
+			}
+			key, _ := termio.ReadByte(wait)
+			if key == 'q' {
+				return nil
+			}
+			if key == '\n' {
+				continue refresh
+			}
+			if key == '-' {
+				g.options.SetInterval(g.options.Interval - time.Millisecond*500)
+				continue refresh
+			}
+			if key == '+' {
+				g.options.SetInterval(g.options.Interval + time.Millisecond*500)
+				continue refresh
+			}
+			if key == ' ' {
+				if pausing {
+					pausing = false
+					continue refresh
+				}
+				pausing = true
+				continue delay
+			}
+			g.showHelp()
 		}
 	}
 	return nil
 }
 
-func (g *Gazer) flush() error {
-	return termio.Flush()
+func (g *Gazer) showHelp() {
+	termio.MoveTo(0, termio.Height()-1)
+	termio.WriteZeroWidthString("\x1b[K")
+	termio.WriteString("[Enter] Refresh [-] Decrease interval [+] Increase interval [Space] Pause [q] Quit")
+	termio.Flush()
 }
 
-func (g *Gazer) Finish() {
+func (g *Gazer) showResumeHelp() {
+	termio.MoveTo(0, termio.Height()-1)
+	termio.WriteZeroWidthString("\x1b[K")
+	termio.WriteString("<Pausing> [Enter] Refresh [Space] Resume auto refresh [q] Quit")
+	termio.Flush()
 }
 
 func (g *Gazer) RunOnce() error {
@@ -158,7 +203,7 @@ func (g *Gazer) RunOnce() error {
 
 	g.Render(rd)
 
-	return g.flush()
+	return termio.Flush()
 }
 
 func (g *Gazer) Render(baseReader io.ReadCloser) {

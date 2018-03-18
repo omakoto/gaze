@@ -8,21 +8,19 @@ import (
 )
 
 var (
-	sigwinch = make(chan os.Signal, 1)
-	sigio    = make(chan os.Signal, 1)
-	close    = make(chan os.Signal, 1)
+	sigio = make(chan os.Signal, 1)
+	quit  chan bool
 
-	orig_tios = syscall.Termios{}
+	origTermios = syscall.Termios{}
 )
 
-func initTerm(term *os.File) error {
+func initTerm() error {
 	fd := term.Fd()
 	if !isatty.IsTerminal(fd) {
 		// If output is not terminal, let's just still work.
 		return nil
 	}
 
-	signal.Notify(sigwinch, syscall.SIGWINCH)
 	signal.Notify(sigio, syscall.SIGIO)
 
 	_, err := fcntl(fd, syscall.F_SETFL, syscall.O_ASYNC|syscall.O_NONBLOCK)
@@ -35,15 +33,16 @@ func initTerm(term *os.File) error {
 		return err
 	}
 
-	err = tcgetattr(fd, &orig_tios)
+	err = tcgetattr(fd, &origTermios)
 	if err != nil {
 		return err
 	}
 
-	tios := orig_tios
+	tios := origTermios
 
 	tios.Lflag &^= syscall.ECHO | syscall.ECHONL | syscall.ICANON
 
+	// From termbox-go
 	//tios.Iflag &^= syscall_IGNBRK | syscall_BRKINT | syscall_PARMRK |
 	//	syscall_ISTRIP | syscall_INLCR | syscall_IGNCR |
 	//	syscall_ICRNL | syscall_IXON
@@ -59,14 +58,22 @@ func initTerm(term *os.File) error {
 		return err
 	}
 
+	quit = make(chan bool, 1)
+	go reader(quit)
+
 	return nil
 }
 
-func deinitTerm(term *os.File) error {
+func deinitTerm() error {
+	if quit != nil {
+		quit <- true // Stop the reader
+	}
+	quit = nil
+
 	fd := term.Fd()
 	if !isatty.IsTerminal(fd) {
 		return nil
 	}
-	tcsetattr(fd, &orig_tios)
+	tcsetattr(fd, &origTermios)
 	return nil
 }

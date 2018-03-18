@@ -27,9 +27,13 @@ var (
 
 	// buffer is where Gazer stores output. Gazer flushes its content to options.Writer at once.
 	buffer = &bytes.Buffer{}
+
+	running bool
 )
 
 func Init(terminal *os.File, forcedWidth, forcedHeight int) error {
+	running = true
+
 	term = terminal
 	if forcedWidth > 0 && forcedHeight > 0 {
 		forceSize = true
@@ -37,11 +41,12 @@ func Init(terminal *os.File, forcedWidth, forcedHeight int) error {
 		height = forcedHeight
 	}
 
-	err := initTerm(term)
+	err := initTerm()
 	if err != nil {
 		return err
 	}
 	Clear()
+
 	return nil
 }
 
@@ -60,8 +65,12 @@ func Clear() {
 }
 
 func Finish() {
+	if !running {
+		return
+	}
+	// TODO Make sure it'll clean up partially initialized state too.
 	fmt.Fprint(term, "\x1b[?25h\n") // Show cursor
-	deinitTerm(term)
+	deinitTerm()
 }
 
 func Width() int {

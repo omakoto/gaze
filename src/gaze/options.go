@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var minInterval = time.Millisecond * 500
+
 /*
    -d, --differences [permanent]
           Highlight the differences between successive updates.  Option will read optional argument that
@@ -75,6 +77,14 @@ type Options struct {
 
 	ForcedTerminalWidth  int
 	ForcedTerminalHeight int
+}
+
+func (o *Options) SetInterval(i time.Duration) {
+	if i < minInterval {
+		o.Interval = minInterval
+		return
+	}
+	o.Interval = i
 }
 
 func (o *Options) GetExecCommand() []string {
