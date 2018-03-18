@@ -3,10 +3,8 @@ package gaze
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"github.com/omakoto/gaze/src/common"
 	"github.com/omakoto/gaze/src/termio"
-	"golang.org/x/crypto/ssh/terminal"
 	"io"
 	"time"
 )
@@ -27,7 +25,7 @@ type Gazer struct {
 	// nextExpectedTime is the time when the next run should start if the precise option is on.
 	nextExpectedTime time.Time
 
-	buffer *termio.Buffer
+	term *termio.Term
 
 	// headerBuffer is a cached buffer to build the header line.
 	headerBuffer *bytes.Buffer
@@ -37,6 +35,8 @@ type Gazer struct {
 
 	// fetcher abstracts how Gazer should execute a command and read its output.
 	fetcher func() (io.ReadCloser, error)
+
+	clock common.Clock
 }
 
 func NewGazer(options Options) *Gazer {
@@ -45,17 +45,19 @@ func NewGazer(options Options) *Gazer {
 	fetcher := func() (io.ReadCloser, error) {
 		return StartCommand(execCommand)
 	}
+	clock := common.NewClock()
 	return &Gazer{
 		options: options,
+		clock:   clock,
 
 		title:       options.GetDisplayCommand(),
 		execCommand: execCommand,
 
-		buffer:       termio.NewBuffer(),
+		term:         termio.NewBuffer(options.Reader, options.Writer, 1, 1),
 		headerBuffer: &bytes.Buffer{},
 		csiBuffer:    &bytes.Buffer{},
 
-		nextExpectedTime: time.Now(),
+		nextExpectedTime: clock.Now(),
 
 		fetcher: fetcher,
 	}
@@ -63,13 +65,10 @@ func NewGazer(options Options) *Gazer {
 
 func (g *Gazer) Reinit() error {
 	g.nextExpectedTime = g.nextExpectedTime.Add(g.options.Interval)
-	g.lastStartTime = time.Now()
+	g.lastStartTime = g.clock.Now()
 
-	w, h, err := terminal.GetSize(1)
-	if err != nil {
-		return err
-	}
-	g.buffer.Reset(w, h)
+	w, h := g.options.MustGetTerminalSize()
+	g.term.Clear(w, h)
 
 	return nil
 }
@@ -107,10 +106,10 @@ func getHeader(hbuf *bytes.Buffer, width int, interval time.Duration, now time.T
 }
 
 func (g *Gazer) showHeader() {
-	header := getHeader(g.headerBuffer, g.buffer.Width(), g.options.Interval, g.lastStartTime, g.title)
+	header := getHeader(g.headerBuffer, g.term.Width(), g.options.Interval, g.lastStartTime, g.title)
 
-	g.buffer.WriteString(header)
-	g.buffer.MoveTo(0, 1)
+	g.term.WriteString(header)
+	g.term.NewLine()
 }
 
 func (g *Gazer) RunLoop(times int) error {
@@ -140,11 +139,10 @@ func (g *Gazer) RunLoop(times int) error {
 }
 
 func (g *Gazer) flush() error {
-	return g.buffer.Flush(g.options.Writer)
+	return g.term.Flush()
 }
 
 func (g *Gazer) Finish() {
-	fmt.Fprint(g.options.Writer, "\x1b[?25h\n") // Show cursor
 }
 
 func (g *Gazer) RunOnce() error {
@@ -154,7 +152,7 @@ func (g *Gazer) RunOnce() error {
 	common.Check(err, "StartCommand() failed")
 	defer rd.Close()
 
-	if !g.options.NoTitle {
+	if !g.options.NoTitle && g.term.Height() >= 2 {
 		g.showHeader()
 	}
 
@@ -166,7 +164,7 @@ func (g *Gazer) RunOnce() error {
 func (g *Gazer) Render(baseReader io.ReadCloser) {
 	rd := bufio.NewReader(baseReader)
 
-	out := g.buffer
+	out := g.term
 
 	for {
 		if !out.CanWrite() {

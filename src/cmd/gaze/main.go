@@ -10,13 +10,18 @@ import (
 )
 
 var (
-	help    = getopt.BoolLong("help", 'h', "Show this help.")
-	debug   = getopt.BoolLong("debug", 'd', "Enable debug output.")
+	help  = getopt.BoolLong("help", 'h', "Show this help.")
+	debug = getopt.BoolLong("debug", 'd', "Enable debug output.")
+
 	precise = getopt.BoolLong("precise", 'p', "Attempt run command in precise intervals.")
 	noTitle = getopt.BoolLong("no-title", 't', "Turn off header.")
 	exec    = getopt.BoolLong("exec", 'x', "Pass command to exec instead of \"sh -c\".")
 	times   = getopt.IntLong("repeat", 'r', -1, "Repeat command N times and finish.")
-	_       = getopt.BoolLong("color", 'c', "Ignored. ANSI colors are always preserved.")
+
+	width  = getopt.IntLong("width", 0, 0, "Specify terminal width. (default: auto)")
+	height = getopt.IntLong("height", 0, 0, "Specify terminal height. (default: auto)")
+
+	_ = getopt.BoolLong("color", 'c', "Ignored. ANSI colors are always preserved.")
 
 	interval float64 = 2
 )
@@ -40,6 +45,9 @@ func main() {
 
 		options := gaze.Options{}
 		options.Writer = os.Stdout
+		options.Reader = os.Stdin
+		options.TerminalWidth = *width
+		options.TerminalHeight = *height
 		options.CommandLine = args
 		options.Interval = time.Duration(float64(time.Second) * interval)
 		options.Precise = *precise

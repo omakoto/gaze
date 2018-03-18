@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 )
 
-type Buffer struct {
+type Term struct {
+	reader io.Reader
+	writer io.Writer
+
 	// width is the terminal width.
 	width int
 
@@ -23,81 +27,97 @@ type Buffer struct {
 	buffer *bytes.Buffer
 }
 
-func NewBuffer() *Buffer {
-	return &Buffer{buffer: &bytes.Buffer{}}
+func NewBuffer(reader io.Reader, writer io.Writer, width, height int) *Term {
+	if width < 1 || height < 1 {
+		log.Panicf("Invalid terminal size: %d x %d", width, height)
+	}
+	t := &Term{
+		reader: reader,
+		writer: writer,
+		width:  width,
+		height: height,
+		buffer: &bytes.Buffer{},
+	}
+	t.Clear(t.width, t.height)
+	return t
 }
 
-func (b *Buffer) Width() int {
-	return b.width
+func (t *Term) Clear(width, height int) {
+	t.width = width
+	t.height = height
+
+	t.buffer.Truncate(0)
+
+	t.WriteZeroWidthString("\x1b[2J\x1b[?25l") // Erase entire screen, hide cursor.
+	t.MoveTo(0, 0)
 }
 
-func (b *Buffer) Height() int {
-	return b.height
+func (t *Term) Finish() {
+	fmt.Fprint(t.writer, "\x1b[?25h\n") // Show cursor
 }
 
-func (b *Buffer) Reset(width, height int) {
-	b.width = width
-	b.height = height
-
-	b.buffer.Truncate(0)
-
-	b.WriteZeroWidthString("\x1b[2J\x1b[?25l") // Erase entire screen, hide cursor.
-	b.MoveTo(0, 0)
+func (t *Term) Width() int {
+	return t.width
 }
 
-func (b *Buffer) WriteZeroWidthString(s string) {
-	b.buffer.WriteString(s)
+func (t *Term) Height() int {
+	return t.height
 }
 
-func (b *Buffer) WriteZeroWidthBytes(bytes []byte) {
-	b.buffer.Write(bytes)
+func (t *Term) WriteZeroWidthString(s string) {
+	t.buffer.WriteString(s)
 }
 
-func (b *Buffer) MoveTo(x, y int) {
-	b.x = x
-	b.y = y
-	b.UpdateCursor()
+func (t *Term) WriteZeroWidthBytes(bytes []byte) {
+	t.buffer.Write(bytes)
 }
 
-func (b *Buffer) Tab() {
-	b.x += 8 - (b.x % 8)
-	if b.x >= b.width {
-		b.NewLine()
+func (t *Term) MoveTo(x, y int) {
+	t.x = x
+	t.y = y
+	t.UpdateCursor()
+}
+
+func (t *Term) Tab() {
+	t.x += 8 - (t.x % 8)
+	if t.x >= t.width {
+		t.NewLine()
 		return
 	}
-	b.UpdateCursor()
+	t.UpdateCursor()
 }
 
-func (b *Buffer) UpdateCursor() {
-	b.WriteZeroWidthString(fmt.Sprintf("\x1b[%d;%dH", b.y+1, b.x+1))
+func (t *Term) UpdateCursor() {
+	t.WriteZeroWidthString(fmt.Sprintf("\x1b[%d;%dH", t.y+1, t.x+1))
 }
 
-func (b *Buffer) CanWrite() bool {
-	return b.CanWriteChars(1)
+func (t *Term) CanWrite() bool {
+	return t.CanWriteChars(1)
 }
 
-func (b *Buffer) CanWriteChars(charWidth int) bool {
-	if b.y < b.height-1 {
+func (t *Term) CanWriteChars(charWidth int) bool {
+	if t.y < t.height-1 {
 		return true
 	}
-	return b.x+charWidth <= b.width
+	return t.x+charWidth <= t.width
 }
 
-func (b *Buffer) NewLine() bool {
-	b.y++
-	b.x = 0
-	if b.y < b.height {
+func (t *Term) NewLine() bool {
+	t.y++
+	t.x = 0
+	if t.y < t.height {
 		// We don't simply use \n here, because if the last character is a wide char,
-		// then we're not confident about the behavior where the last character will be put.
-		b.UpdateCursor()
+		// then we're not confident where the last character will be put.
+		t.buffer.WriteByte('\n')
+		t.UpdateCursor()
 		return true
 	}
 	return false
 }
 
-func (b *Buffer) WriteString(s string) bool {
+func (t *Term) WriteString(s string) bool {
 	for _, ch := range s {
-		if b.WriteRune(ch) {
+		if t.WriteRune(ch) {
 			continue
 		}
 		return false
@@ -105,22 +125,22 @@ func (b *Buffer) WriteString(s string) bool {
 	return true
 }
 
-func (b *Buffer) WriteRune(ch rune) bool {
+func (t *Term) WriteRune(ch rune) bool {
 	runeWidth := RuneWidth(ch)
-	if b.x+runeWidth > b.width {
-		if !b.NewLine() {
+	if t.x+runeWidth > t.width {
+		if !t.NewLine() {
 			return false
 		}
 	}
-	if b.CanWriteChars(runeWidth) {
-		b.buffer.WriteRune(ch)
-		b.x += runeWidth
+	if t.CanWriteChars(runeWidth) {
+		t.buffer.WriteRune(ch)
+		t.x += runeWidth
 		return true
 	}
 	return false
 }
 
-func (b *Buffer) Flush(wr io.Writer) error {
-	_, err := wr.Write(b.buffer.Bytes())
+func (t *Term) Flush() error {
+	_, err := t.writer.Write(t.buffer.Bytes())
 	return err
 }
