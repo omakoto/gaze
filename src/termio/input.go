@@ -17,6 +17,7 @@ var (
 )
 
 func reader(quitChan chan bool) {
+	// TODO Don't use sigio, use blocked read with select.
 	for {
 		select {
 		case <-sigio:

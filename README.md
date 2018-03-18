@@ -33,3 +33,6 @@ Short|Long|Description
 
 ## TODOs
  - It somehow breaks alternate screen buffer (e.g. fzf)
+ - Make "term" an interface and add a mock
+ - Don't use SIGIO. Just use a blocked read and select.
+ - Extract the keyboard control logic out and add tests. 
