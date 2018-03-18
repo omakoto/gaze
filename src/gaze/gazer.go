@@ -121,8 +121,13 @@ func (g *Gazer) RunLoop(times int) error {
 		return nil
 	}
 	var pausing bool
+	var forceRefresh bool
 refresh:
 	for i := 0; ; {
+		if forceRefresh {
+			g.nextExpectedTime = g.clock.Now()
+			forceRefresh = false
+		}
 		err := g.RunOnce()
 		if err != nil {
 			return err
@@ -140,6 +145,8 @@ refresh:
 			nextTime = lastEndTime.Add(g.options.Interval)
 		}
 
+		// TODO Extract the control logic, clean it up and write tests.
+
 	delay:
 		for pausing || nextTime.After(g.clock.Now()) {
 			wait := time.Until(nextTime)
@@ -147,24 +154,31 @@ refresh:
 				wait = time.Hour * 24 * 365 * 10 // 10 years.
 				g.showResumeHelp()
 			}
-			key, _ := termio.ReadByte(wait)
+			key, err := termio.ReadByte(wait)
+			if err != nil {
+				break
+			}
 			if key == 'q' {
 				return nil
 			}
 			if key == '\n' {
+				forceRefresh = true
 				continue refresh
 			}
 			if key == '-' {
 				g.options.SetInterval(g.options.Interval - time.Millisecond*500)
+				forceRefresh = true
 				continue refresh
 			}
 			if key == '+' {
 				g.options.SetInterval(g.options.Interval + time.Millisecond*500)
+				forceRefresh = true
 				continue refresh
 			}
 			if key == ' ' {
 				if pausing {
 					pausing = false
+					forceRefresh = true
 					continue refresh
 				}
 				pausing = true
