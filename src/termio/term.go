@@ -11,21 +11,49 @@ import (
 )
 
 type Term interface {
-	Clear()
-	Finish()
+	// Width returns the terminal width.
 	Width() int
+
+	// Height returns the terminal height.
 	Height() int
-	WriteZeroWidthString(s string)
-	WriteZeroWidthBytes(bytes []byte)
-	MoveTo(newX, newY int)
-	Tab()
-	UpdateCursor()
-	CanWrite() bool
-	CanWriteChars(charWidth int) bool
-	NewLine() bool
-	WriteString(s string) bool
-	WriteRune(ch rune) bool
+
+	// Clear clears the internal buffer, but it won't flush. Clear also refreshes the terminal size.
+	Clear()
+
+	// Flush flushes the internal buffer to the output terminal.
 	Flush() error
+
+	// Finish cleans up the terminal and restores the original state.
+	Finish()
+
+	// WriteZeroWidthString writes a string to the internal buffer without moving the cursor.
+	WriteZeroWidthString(s string)
+
+	// WriteZeroWidthBytes writes a byte array to the internal buffer without moving the cursor.
+	WriteZeroWidthBytes(bytes []byte)
+
+	// MoveTo moves the cursor to a given position.
+	MoveTo(newX, newY int)
+
+	// Tab moves the cursor to the next tab position.
+	Tab()
+
+	// Can write returns whether to be able to write anything at the cursor position without overflowing the terminal.
+	CanWrite() bool
+
+	// Can write returns whether to be able to write a char of a given width at the cursor position without overflowing the terminal.
+	CanWriteChars(charWidth int) bool
+
+	// NewLine moves the cursor to the beginning of the next line.
+	NewLine() bool
+
+	// WriteString writes a string to the internal buffer and moves the cursor.
+	WriteString(s string) bool
+
+	// WriteString writes a rune to the internal buffer and moves the cursor.
+	WriteRune(ch rune) bool
+
+	// ReadByteTimeout reads a byte from terminal with a timeout.
 	ReadByteTimeout(timeout time.Duration) (byte, error)
 }
 
@@ -132,7 +160,7 @@ func (t *termImpl) WriteZeroWidthBytes(bytes []byte) {
 func (t *termImpl) MoveTo(newX, newY int) {
 	t.x = newX
 	t.y = newY
-	t.UpdateCursor()
+	t.updateCursor()
 }
 
 func (t *termImpl) Tab() {
@@ -141,10 +169,10 @@ func (t *termImpl) Tab() {
 		t.NewLine()
 		return
 	}
-	t.UpdateCursor()
+	t.updateCursor()
 }
 
-func (t *termImpl) UpdateCursor() {
+func (t *termImpl) updateCursor() {
 	t.WriteZeroWidthString(fmt.Sprintf("\x1b[%d;%dH", t.y+1, t.x+1))
 }
 
@@ -166,7 +194,7 @@ func (t *termImpl) NewLine() bool {
 		// We don't simply use \n here, because if the last character is a wide char,
 		// then we're not confident where the last character will be put.
 		t.buffer.WriteByte('\n')
-		t.UpdateCursor()
+		t.updateCursor()
 		return true
 	}
 	return false

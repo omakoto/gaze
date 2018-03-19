@@ -40,6 +40,8 @@ type gazerAsRepeatable struct {
 	g *Gazer
 }
 
+var _ repeater.Repeatable = (*gazerAsRepeatable)(nil)
+
 func (gr *gazerAsRepeatable) Run() error {
 	return gr.g.RunOnce()
 }
@@ -50,6 +52,14 @@ func (gr *gazerAsRepeatable) ShowResumeHelp() {
 
 func (gr *gazerAsRepeatable) ShowHelp() {
 	gr.g.showHelp()
+}
+
+func (gr *gazerAsRepeatable) Interval() time.Duration {
+	return gr.g.options.Interval
+}
+
+func (gr *gazerAsRepeatable) SetInterval(interval time.Duration) {
+	gr.g.options.SetInterval(interval)
 }
 
 func NewGazer(options Options) *Gazer {
@@ -125,7 +135,7 @@ func (g *Gazer) showHeader() {
 
 func (g *Gazer) RunLoop(times int) error {
 	r := repeater.NewRepeater(&gazerAsRepeatable{g})
-	return r.Loop(g.options.Precise, g.options.Interval, time.Millisecond*500, times, g.term, g.clock)
+	return r.Loop(g.options.Precise, times, g.term, g.clock)
 }
 
 func (g *Gazer) showHelp() {

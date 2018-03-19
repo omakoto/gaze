@@ -9,6 +9,8 @@ type Repeatable interface {
 	Run() error
 	ShowResumeHelp()
 	ShowHelp()
+	Interval() time.Duration
+	SetInterval(duration time.Duration)
 }
 
 type ByteReader interface {
@@ -23,17 +25,14 @@ func NewRepeater(target Repeatable) *Repeater {
 	return &Repeater{target}
 }
 
-func (r *Repeater) Loop(precise bool, interval time.Duration, minInterval time.Duration, times int, reader ByteReader, clock common.Clock) error {
+// TODO Test
+func (r *Repeater) Loop(precise bool, times int, reader ByteReader, clock common.Clock) error {
 	if times == 0 {
 		return nil
 	}
-	if interval < minInterval {
-		interval = minInterval
-	}
-
 	var pausing bool
-	lastExpectedStartTime := clock.Now()
-	var lastEndTime time.Time
+	nextExpectedStartTime := clock.Now()
+	var lastExpectedStartTime, lastEndTime time.Time
 
 	var baseTime func() time.Time
 	if precise {
@@ -47,6 +46,7 @@ func (r *Repeater) Loop(precise bool, interval time.Duration, minInterval time.D
 
 refresh:
 	for i := 0; ; {
+		lastExpectedStartTime = nextExpectedStartTime
 		err := r.target.Run()
 		if err != nil {
 			return err
@@ -58,11 +58,11 @@ refresh:
 			break
 		}
 
-		lastExpectedStartTime := baseTime().Add(interval)
+		nextExpectedStartTime = baseTime().Add(r.target.Interval())
 
 	delay:
-		for pausing || lastExpectedStartTime.After(clock.Now()) {
-			wait := time.Until(lastExpectedStartTime)
+		for pausing || nextExpectedStartTime.After(clock.Now()) {
+			wait := time.Until(nextExpectedStartTime)
 			if pausing {
 				wait = time.Hour * 24 * 365 * 10 // 10 years.
 				r.target.ShowResumeHelp()
@@ -79,15 +79,12 @@ refresh:
 				continue refresh
 			}
 			if key == '-' {
-				interval = interval - time.Millisecond*500
-				if interval < minInterval {
-					interval = minInterval
-				}
+				r.target.SetInterval(r.target.Interval() - time.Millisecond*500)
 				forceRefresh()
 				continue refresh
 			}
 			if key == '+' {
-				interval = interval + time.Millisecond*500
+				r.target.SetInterval(r.target.Interval() + time.Millisecond*500)
 				forceRefresh()
 				continue refresh
 			}
