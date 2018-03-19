@@ -8,34 +8,31 @@ import (
 var (
 	ErrReadTimedOut = errors.New("read timed out")
 	ErrReadClosing  = errors.New("termio closing")
-
-	readBuffer = make([]byte, 1)
-	readBytes  = make(chan struct {
-		byte
-		error
-	}, 1)
 )
 
-func reader(quitChan chan bool) {
+type ByteAndError struct {
+	b   byte
+	err error
+}
+
+func reader(t *Term) {
 	// TODO Don't use sigio, use blocked read with select.
 	for {
 		select {
-		case <-sigio:
-			read, _ := term.Read(readBuffer)
-			// common.Check(err, "TODO Handle it somehow")
-			if read > 0 {
-				readBytes <- struct {
-					byte
-					error
-				}{readBuffer[0], nil}
-			}
-		case <-quitChan:
+		//FIXME
+		//case <-sigio:
+		//	read, _ := t.term.Read(t.readBuffer)
+		//	// common.Check(err, "TODO Handle it somehow")
+		//	if read > 0 {
+		//		t.readBytes <- ByteAndError{t.readBuffer[0], nil}
+		//	}
+		case <-t.quitChan:
 			return
 		}
 	}
 }
 
-func ReadByte(timeout time.Duration) (byte, error) {
+func (t *Term) ReadByte(timeout time.Duration) (byte, error) {
 	timeoutChan := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)
@@ -44,8 +41,8 @@ func ReadByte(timeout time.Duration) (byte, error) {
 
 	for {
 		select {
-		case b := <-readBytes:
-			return b.byte, b.error
+		case b := <-t.readBytes:
+			return b.b, b.err
 		case <-timeoutChan:
 			return 0, ErrReadTimedOut
 		}

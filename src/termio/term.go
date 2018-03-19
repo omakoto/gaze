@@ -6,9 +6,10 @@ import (
 	"github.com/omakoto/gaze/src/common"
 	"golang.org/x/crypto/ssh/terminal"
 	"os"
+	"syscall"
 )
 
-var (
+type Term struct {
 	term *os.File
 
 	// width is the terminal width.
@@ -20,121 +21,131 @@ var (
 	forceSize bool
 
 	// x is the cursor x position.
-	x = 0
+	x int
 
 	// x is the cursor y position.
-	y = 0
+	y int
 
 	// buffer is where Gazer stores output. Gazer flushes its content to options.Writer at once.
-	buffer = &bytes.Buffer{}
+	buffer *bytes.Buffer
 
 	running bool
-)
 
-func Init(terminal *os.File, forcedWidth, forcedHeight int) error {
-	running = true
+	// Used by reader
+	readBuffer []byte
+	readBytes  chan ByteAndError
+	quitChan   chan bool
 
-	term = terminal
-	if forcedWidth > 0 && forcedHeight > 0 {
-		forceSize = true
-		width = forcedWidth
-		height = forcedHeight
-	}
-
-	err := initTerm()
-	if err != nil {
-		return err
-	}
-	Clear()
-
-	return nil
+	origTermios syscall.Termios
 }
 
-func Clear() {
-	if !forceSize {
+func NewTerm(term *os.File, forcedWidth, forcedHeight int) (*Term, error) {
+	t := &Term{}
+
+	t.running = true
+	t.buffer = &bytes.Buffer{}
+
+	t.term = term
+	if forcedWidth > 0 && forcedHeight > 0 {
+		t.forceSize = true
+		t.width = forcedWidth
+		t.height = forcedHeight
+	}
+
+	err := initTerm(t)
+	if err != nil {
+		return nil, err
+	}
+	t.Clear()
+
+	return t, nil
+}
+
+func (t *Term) Clear() {
+	if !t.forceSize {
 		w, h, err := terminal.GetSize(1)
 		common.Check(err, "Unable to get terminal size.")
-		width = w
-		height = h
+		t.width = w
+		t.height = h
 	}
 
-	buffer.Truncate(0)
+	t.buffer.Truncate(0)
 
-	WriteZeroWidthString("\x1b[2J\x1b[?25l") // Erase entire screen, hide cursor.
-	MoveTo(0, 0)
+	t.WriteZeroWidthString("\x1b[2J\x1b[?25l") // Erase entire screen, hide cursor.
+	t.MoveTo(0, 0)
 }
 
-func Finish() {
-	if !running {
+func (t *Term) Finish() {
+	if !t.running {
 		return
 	}
 	// TODO Make sure it'll clean up partially initialized state too.
-	fmt.Fprint(term, "\x1b[?25h\n") // Show cursor
-	deinitTerm()
+	fmt.Fprint(t.term, "\x1b[?25h\n") // Show cursor
+	deinitTerm(t)
 }
 
-func Width() int {
-	return width
+func (t *Term) Width() int {
+	return t.width
 }
 
-func Height() int {
-	return height
+func (t *Term) Height() int {
+	return t.height
 }
 
-func WriteZeroWidthString(s string) {
-	buffer.WriteString(s)
+func (t *Term) WriteZeroWidthString(s string) {
+	t.buffer.WriteString(s)
 }
 
-func WriteZeroWidthBytes(bytes []byte) {
-	buffer.Write(bytes)
+func (t *Term) WriteZeroWidthBytes(bytes []byte) {
+	t.buffer.Write(bytes)
 }
 
-func MoveTo(newX, newY int) {
-	x = newX
-	y = newY
-	UpdateCursor()
+func (t *Term) MoveTo(newX, newY int) {
+	t.x = newX
+	t.y = newY
+	t.UpdateCursor()
 }
 
-func Tab() {
-	x += 8 - (x % 8)
-	if x >= width {
-		NewLine()
+func (t *Term) Tab() {
+	t.x += 8 - (t.x % 8)
+	if t.x >= t.width {
+		t.NewLine()
 		return
 	}
-	UpdateCursor()
+	t.UpdateCursor()
 }
 
-func UpdateCursor() {
-	WriteZeroWidthString(fmt.Sprintf("\x1b[%d;%dH", y+1, x+1))
+func (t *Term) UpdateCursor() {
+	t.WriteZeroWidthString(fmt.Sprintf("\x1b[%d;%dH", t.y+1, t.x+1))
 }
 
-func CanWrite() bool {
-	return CanWriteChars(1)
+func (t *Term) CanWrite() bool {
+	return t.CanWriteChars(1)
 }
 
-func CanWriteChars(charWidth int) bool {
-	if y < height-1 {
+func (t *Term) CanWriteChars(charWidth int) bool {
+	if t.y < t.height-1 {
 		return true
 	}
-	return x+charWidth <= width
+	return t.x+charWidth <= t.width
 }
 
-func NewLine() bool {
-	y++
-	x = 0
-	if y < height {
+func (t *Term) NewLine() bool {
+	t.y++
+	t.x = 0
+	if t.y < t.height {
 		// We don't simply use \n here, because if the last character is a wide char,
 		// then we're not confident where the last character will be put.
-		buffer.WriteByte('\n')
-		UpdateCursor()
+		t.buffer.WriteByte('\n')
+		t.UpdateCursor()
 		return true
 	}
 	return false
 }
 
-func WriteString(s string) bool {
+func (t *Term) WriteString(s string) bool {
 	for _, ch := range s {
-		if WriteRune(ch) {
+		if t.WriteRune(ch) {
 			continue
 		}
 		return false
@@ -142,22 +153,22 @@ func WriteString(s string) bool {
 	return true
 }
 
-func WriteRune(ch rune) bool {
+func (t *Term) WriteRune(ch rune) bool {
 	runeWidth := RuneWidth(ch)
-	if x+runeWidth > width {
-		if !NewLine() {
+	if t.x+runeWidth > t.width {
+		if !t.NewLine() {
 			return false
 		}
 	}
-	if CanWriteChars(runeWidth) {
-		buffer.WriteRune(ch)
-		x += runeWidth
+	if t.CanWriteChars(runeWidth) {
+		t.buffer.WriteRune(ch)
+		t.x += runeWidth
 		return true
 	}
 	return false
 }
 
-func Flush() error {
-	_, err := term.Write(buffer.Bytes())
+func (t *Term) Flush() error {
+	_, err := t.term.Write(t.buffer.Bytes())
 	return err
 }

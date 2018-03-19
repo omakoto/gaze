@@ -2,26 +2,15 @@ package termio
 
 import (
 	"github.com/mattn/go-isatty"
-	"os"
-	"os/signal"
 	"syscall"
 )
 
-var (
-	sigio = make(chan os.Signal, 1)
-	quit  chan bool
-
-	origTermios = syscall.Termios{}
-)
-
-func initTerm() error {
-	fd := term.Fd()
+func initTerm(t *Term) error {
+	fd := t.term.Fd()
 	if !isatty.IsTerminal(fd) {
 		// If output is not terminal, let's just still work.
 		return nil
 	}
-
-	signal.Notify(sigio, syscall.SIGIO)
 
 	_, err := fcntl(fd, syscall.F_SETFL, syscall.O_ASYNC|syscall.O_NONBLOCK)
 	if err != nil {
@@ -33,12 +22,12 @@ func initTerm() error {
 		return err
 	}
 
-	err = tcgetattr(fd, &origTermios)
+	err = tcgetattr(fd, &t.origTermios)
 	if err != nil {
 		return err
 	}
 
-	tios := origTermios
+	tios := t.origTermios
 
 	tios.Lflag &^= syscall.ECHO | syscall.ECHONL | syscall.ICANON
 
@@ -58,22 +47,25 @@ func initTerm() error {
 		return err
 	}
 
-	quit = make(chan bool, 1)
-	go reader(quit)
+	t.quitChan = make(chan bool, 1)
+	t.readBuffer = make([]byte, 1)
+	t.readBytes = make(chan ByteAndError, 1)
+	go reader(t)
 
 	return nil
 }
 
-func deinitTerm() error {
-	if quit != nil {
-		quit <- true // Stop the reader
+func deinitTerm(t *Term) error {
+	if t.quitChan != nil {
+		t.quitChan <- true // Stop the reader
+		close(t.quitChan)
+		close(t.readBytes)
 	}
-	quit = nil
 
-	fd := term.Fd()
+	fd := t.term.Fd()
 	if !isatty.IsTerminal(fd) {
 		return nil
 	}
-	tcsetattr(fd, &origTermios)
+	tcsetattr(fd, &t.origTermios)
 	return nil
 }
