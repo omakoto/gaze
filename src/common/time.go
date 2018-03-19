@@ -39,11 +39,11 @@ func NewClock() Clock {
 
 // InjectedClock is a mock clock.
 type InjectedClock struct {
-	time time.Time
+	Time time.Time
 }
 
 func (c InjectedClock) Now() time.Time {
-	return c.time
+	return c.Time
 }
 
 // NewInjectedClock creates a new mock clock.
