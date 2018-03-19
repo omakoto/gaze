@@ -2,6 +2,7 @@ package termio
 
 import (
 	"errors"
+	"io"
 	"time"
 )
 
@@ -16,18 +17,17 @@ type ByteAndError struct {
 }
 
 func reader(t *Term) {
-	// TODO Don't use sigio, use blocked read with select.
 	for {
-		select {
-		//FIXME
-		//case <-sigio:
-		//	read, _ := t.term.Read(t.readBuffer)
-		//	// common.Check(err, "TODO Handle it somehow")
-		//	if read > 0 {
-		//		t.readBytes <- ByteAndError{t.readBuffer[0], nil}
-		//	}
-		case <-t.quitChan:
+		read, err := t.out.Read(t.readBuffer)
+		if err == io.EOF {
+			close(t.quitChan)
 			return
+		}
+		if err != nil {
+			return // TODO Will it happen?
+		}
+		if read > 0 {
+			t.readBytes <- ByteAndError{t.readBuffer[0], nil}
 		}
 	}
 }
@@ -45,6 +45,8 @@ func (t *Term) ReadByte(timeout time.Duration) (byte, error) {
 			return b.b, b.err
 		case <-timeoutChan:
 			return 0, ErrReadTimedOut
+		case <-t.quitChan:
+			return 0, ErrReadClosing
 		}
 	}
 }

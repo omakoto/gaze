@@ -32,7 +32,5 @@ Short|Long|Description
 -g|--chgexit|Exit when output from command changes.
 
 ## TODOs
- - It somehow breaks alternate screen buffer (e.g. fzf)
- - Make "term" an interface and add a mock
- - Don't use SIGIO. Just use a blocked read and select.
+ - Handle interrupts gracefully and restore termios.
  - Extract the keyboard control logic out and add tests. 

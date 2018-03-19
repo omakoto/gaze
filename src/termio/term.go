@@ -10,7 +10,7 @@ import (
 )
 
 type Term struct {
-	term *os.File
+	in, out *os.File
 
 	// width is the terminal width.
 	width int
@@ -36,16 +36,18 @@ type Term struct {
 	readBytes  chan ByteAndError
 	quitChan   chan bool
 
-	origTermios syscall.Termios
+	origTermiosIn  syscall.Termios
+	origTermiosOut syscall.Termios
 }
 
-func NewTerm(term *os.File, forcedWidth, forcedHeight int) (*Term, error) {
+func NewTerm(in, out *os.File, forcedWidth, forcedHeight int) (*Term, error) {
 	t := &Term{}
 
 	t.running = true
 	t.buffer = &bytes.Buffer{}
 
-	t.term = term
+	t.in = in
+	t.out = out
 	if forcedWidth > 0 && forcedHeight > 0 {
 		t.forceSize = true
 		t.width = forcedWidth
@@ -56,6 +58,7 @@ func NewTerm(term *os.File, forcedWidth, forcedHeight int) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	t.Clear()
 
 	return t, nil
@@ -80,7 +83,7 @@ func (t *Term) Finish() {
 		return
 	}
 	// TODO Make sure it'll clean up partially initialized state too.
-	fmt.Fprint(t.term, "\x1b[?25h\n") // Show cursor
+	fmt.Fprint(t.out, "\x1b[?25h\n") // Show cursor
 	deinitTerm(t)
 }
 
@@ -169,6 +172,6 @@ func (t *Term) WriteRune(ch rune) bool {
 }
 
 func (t *Term) Flush() error {
-	_, err := t.term.Write(t.buffer.Bytes())
+	_, err := t.out.Write(t.buffer.Bytes())
 	return err
 }

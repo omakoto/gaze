@@ -52,7 +52,7 @@ var minInterval = time.Millisecond * 500
 */
 
 type Options struct {
-	Term *os.File
+	Input, Output *os.File
 
 	// CommandLine is the command to execute.
 	CommandLine []string

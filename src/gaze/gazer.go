@@ -46,7 +46,7 @@ func NewGazer(options Options) *Gazer {
 		return StartCommand(execCommand)
 	}
 	clock := common.NewClock()
-	term, err := termio.NewTerm(options.Term, options.ForcedTerminalWidth, options.ForcedTerminalHeight)
+	term, err := termio.NewTerm(options.Input, options.Output, options.ForcedTerminalWidth, options.ForcedTerminalHeight)
 	if err != nil {
 		common.Fatalf("Unable to initialize terminal.")
 	}

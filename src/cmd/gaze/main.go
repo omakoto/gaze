@@ -44,7 +44,8 @@ func main() {
 		}
 
 		options := gaze.Options{}
-		options.Term = os.Stdout
+		options.Input = os.Stdin
+		options.Output = os.Stdout
 		options.ForcedTerminalWidth = *width
 		options.ForcedTerminalHeight = *height
 		options.CommandLine = args
@@ -57,7 +58,6 @@ func main() {
 		common.Debugf("Display command: %s\n", options.GetDisplayCommand())
 		common.Dump("Exec command: ", options.GetExecCommand())
 
-		//testRun(options)
 		gazer := gaze.NewGazer(options)
 		defer gazer.Finish()
 
