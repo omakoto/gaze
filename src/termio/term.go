@@ -85,6 +85,10 @@ func (t *Term) Finish() {
 	// TODO Make sure it'll clean up partially initialized state too.
 	fmt.Fprint(t.out, "\x1b[?25h\n") // Show cursor
 	deinitTerm(t)
+
+	// TODO Don't close them so the process can restart termio. But closing in will finish the reader goroutine.
+	t.in.Close()
+	t.out.Close()
 }
 
 func (t *Term) Width() int {

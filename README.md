@@ -33,4 +33,5 @@ Short|Long|Description
 
 ## TODOs
  - Handle interrupts gracefully and restore termios.
+ - termio isn't reusable within the same process because it closes in and out (to finish the reader goroutine).
  - Extract the keyboard control logic out and add tests. 

@@ -158,7 +158,7 @@ refresh:
 				wait = time.Hour * 24 * 365 * 10 // 10 years.
 				g.showResumeHelp()
 			}
-			key, err := g.term.ReadByte(wait)
+			key, err := g.term.ReadByteTimeout(wait)
 			if err != nil {
 				break
 			}

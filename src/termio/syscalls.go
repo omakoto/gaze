@@ -6,14 +6,14 @@ import (
 	"unsafe"
 )
 
-func fcntl(fd uintptr, cmd int, arg int) (val int, err error) {
-	r, _, e := syscall.Syscall(syscall.SYS_FCNTL, fd, uintptr(cmd), uintptr(arg))
-	val = int(r)
-	if e != 0 {
-		err = e
-	}
-	return
-}
+//func fcntl(fd uintptr, cmd int, arg int) (val int, err error) {
+//	r, _, e := syscall.Syscall(syscall.SYS_FCNTL, fd, uintptr(cmd), uintptr(arg))
+//	val = int(r)
+//	if e != 0 {
+//		err = e
+//	}
+//	return
+//}
 
 func tcsetattr(fd uintptr, termios *syscall.Termios) error {
 	r, _, e := syscall.Syscall(syscall.SYS_IOCTL,

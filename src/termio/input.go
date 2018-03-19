@@ -16,23 +16,24 @@ type ByteAndError struct {
 	err error
 }
 
-func reader(t *Term) {
-	for {
-		read, err := t.out.Read(t.readBuffer)
-		if err == io.EOF {
-			close(t.quitChan)
-			return
+func startReader(t *Term) {
+	go func() {
+		for {
+			read, err := t.out.Read(t.readBuffer)
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				return
+			}
+			if read > 0 {
+				t.readBytes <- ByteAndError{t.readBuffer[0], nil}
+			}
 		}
-		if err != nil {
-			return // TODO Will it happen?
-		}
-		if read > 0 {
-			t.readBytes <- ByteAndError{t.readBuffer[0], nil}
-		}
-	}
+	}()
 }
 
-func (t *Term) ReadByte(timeout time.Duration) (byte, error) {
+func (t *Term) ReadByteTimeout(timeout time.Duration) (byte, error) {
 	timeoutChan := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)

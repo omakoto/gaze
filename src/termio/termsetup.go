@@ -10,7 +10,7 @@ func initTerm(t *Term) error {
 	t.quitChan = make(chan bool, 1)
 	t.readBuffer = make([]byte, 1)
 	t.readBytes = make(chan ByteAndError, 1)
-	go reader(t)
+	startReader(t)
 
 	err := saveTermios(t.out, &t.origTermiosOut)
 	if err != nil {
@@ -25,11 +25,7 @@ func initTerm(t *Term) error {
 	if err != nil {
 		return err
 	}
-	err = initTermios(t.in, &t.origTermiosIn)
-	if err != nil {
-		return err
-	}
-	return nil
+	return initTermios(t.in, &t.origTermiosIn)
 }
 
 // From termbox-go
@@ -79,12 +75,10 @@ func deinitTerm(t *Term) error {
 		t.quitChan <- true // Stop the reader
 		close(t.quitChan)
 		close(t.readBytes)
+		t.quitChan = nil
+		t.readBytes = nil
 	}
 
-	fd := t.out.Fd()
-	if !isatty.IsTerminal(fd) {
-		return nil
-	}
 	err := restoreTermios(t.out, &t.origTermiosOut)
 	if err != nil {
 		return err
