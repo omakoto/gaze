@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"github.com/omakoto/gaze/src/common"
+	"github.com/omakoto/gaze/src/gaze/repeater"
 	"github.com/omakoto/gaze/src/termio"
 	"io"
 	"time"
@@ -35,6 +36,22 @@ type Gazer struct {
 	clock common.Clock
 }
 
+type gazerAsRepeatable struct {
+	g *Gazer
+}
+
+func (gr *gazerAsRepeatable) Run() error {
+	return gr.g.RunOnce()
+}
+
+func (gr *gazerAsRepeatable) ShowResumeHelp() {
+	gr.g.showResumeHelp()
+}
+
+func (gr *gazerAsRepeatable) ShowHelp() {
+	gr.g.showHelp()
+}
+
 func NewGazer(options Options) *Gazer {
 	execCommand := options.GetExecCommand()
 
@@ -62,6 +79,7 @@ func NewGazer(options Options) *Gazer {
 	}
 }
 
+// Finish does all clean-ups. Must call it once done.
 func (g *Gazer) Finish() {
 	g.term.Finish()
 }
@@ -106,82 +124,8 @@ func (g *Gazer) showHeader() {
 }
 
 func (g *Gazer) RunLoop(times int) error {
-	if times == 0 {
-		return nil
-	}
-	var pausing bool
-	lastExpectedStartTime := g.clock.Now()
-	var lastEndTime time.Time
-
-	var baseTime func() time.Time
-	if g.options.Precise {
-		baseTime = func() time.Time { return lastExpectedStartTime }
-	} else {
-		baseTime = func() time.Time { return lastEndTime }
-	}
-	forceRefresh := func() {
-		lastExpectedStartTime = g.clock.Now()
-	}
-
-refresh:
-	for i := 0; ; {
-		err := g.RunOnce()
-		if err != nil {
-			return err
-		}
-		lastEndTime = g.clock.Now()
-
-		i++
-		if times > 0 && i >= times {
-			break
-		}
-
-		nextTime := baseTime().Add(g.options.Interval)
-		lastExpectedStartTime = nextTime
-
-		// TODO Extract the control logic, clean it up and write tests.
-
-	delay:
-		for pausing || nextTime.After(g.clock.Now()) {
-			wait := time.Until(nextTime)
-			if pausing {
-				wait = time.Hour * 24 * 365 * 10 // 10 years.
-				g.showResumeHelp()
-			}
-			key, err := g.term.ReadByteTimeout(wait)
-			if err != nil {
-				break
-			}
-			if key == 'q' {
-				return nil
-			}
-			if key == '\n' {
-				forceRefresh()
-				continue refresh
-			}
-			if key == '-' {
-				g.options.SetInterval(g.options.Interval - time.Millisecond*500)
-				forceRefresh()
-				continue refresh
-			}
-			if key == '+' {
-				g.options.SetInterval(g.options.Interval + time.Millisecond*500)
-				forceRefresh()
-				continue refresh
-			}
-			if key == ' ' {
-				if pausing {
-					pausing = false
-					forceRefresh()
-					continue refresh
-				}
-				pausing = true
-				continue delay
-			}
-			g.showHelp()
-		}
-	}
-	return nil
+	r := repeater.NewRepeater(&gazerAsRepeatable{g})
+	return r.Loop(g.options.Precise, g.options.Interval, time.Millisecond*500, times, g.term, g.clock)
 }
 
 func (g *Gazer) showHelp() {
@@ -210,12 +154,12 @@ func (g *Gazer) RunOnce() error {
 		g.showHeader()
 	}
 
-	g.Render(rd)
+	g.render(rd)
 
 	return g.term.Flush()
 }
 
-func (g *Gazer) Render(baseReader io.ReadCloser) {
+func (g *Gazer) render(baseReader io.ReadCloser) {
 	rd := bufio.NewReader(baseReader)
 
 	t := g.term

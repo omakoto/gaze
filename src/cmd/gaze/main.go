@@ -49,7 +49,7 @@ func main() {
 		options.ForcedTerminalWidth = *width
 		options.ForcedTerminalHeight = *height
 		options.CommandLine = args
-		options.SetInterval(time.Duration(float64(time.Second) * interval))
+		options.Interval = time.Duration(float64(time.Second) * interval)
 		options.Precise = *precise
 		options.NoTitle = *noTitle
 		options.UseExec = *exec
