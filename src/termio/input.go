@@ -16,7 +16,7 @@ type ByteAndError struct {
 	err error
 }
 
-func startReader(t *Term) {
+func startReader(t *termImpl) {
 	go func() {
 		for {
 			read, err := t.out.Read(t.readBuffer)
@@ -33,7 +33,7 @@ func startReader(t *Term) {
 	}()
 }
 
-func (t *Term) ReadByteTimeout(timeout time.Duration) (byte, error) {
+func (t *termImpl) ReadByteTimeout(timeout time.Duration) (byte, error) {
 	timeoutChan := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)

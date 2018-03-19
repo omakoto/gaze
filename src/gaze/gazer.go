@@ -19,7 +19,7 @@ type Gazer struct {
 	// title is a human readable version of the command line.
 	title string
 
-	term *termio.Term
+	term termio.Term
 
 	// lastStartTime is the start time of the last run.
 	lastStartTime time.Time

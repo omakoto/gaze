@@ -7,9 +7,29 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"os"
 	"syscall"
+	"time"
 )
 
-type Term struct {
+type Term interface {
+	Clear()
+	Finish()
+	Width() int
+	Height() int
+	WriteZeroWidthString(s string)
+	WriteZeroWidthBytes(bytes []byte)
+	MoveTo(newX, newY int)
+	Tab()
+	UpdateCursor()
+	CanWrite() bool
+	CanWriteChars(charWidth int) bool
+	NewLine() bool
+	WriteString(s string) bool
+	WriteRune(ch rune) bool
+	Flush() error
+	ReadByteTimeout(timeout time.Duration) (byte, error)
+}
+
+type termImpl struct {
 	in, out *os.File
 
 	// width is the terminal width.
@@ -40,8 +60,10 @@ type Term struct {
 	origTermiosOut syscall.Termios
 }
 
-func NewTerm(in, out *os.File, forcedWidth, forcedHeight int) (*Term, error) {
-	t := &Term{}
+var _ Term = (*termImpl)(nil)
+
+func NewTerm(in, out *os.File, forcedWidth, forcedHeight int) (Term, error) {
+	t := &termImpl{}
 
 	t.running = true
 	t.buffer = &bytes.Buffer{}
@@ -64,7 +86,7 @@ func NewTerm(in, out *os.File, forcedWidth, forcedHeight int) (*Term, error) {
 	return t, nil
 }
 
-func (t *Term) Clear() {
+func (t *termImpl) Clear() {
 	if !t.forceSize {
 		w, h, err := terminal.GetSize(1)
 		common.Check(err, "Unable to get terminal size.")
@@ -78,7 +100,7 @@ func (t *Term) Clear() {
 	t.MoveTo(0, 0)
 }
 
-func (t *Term) Finish() {
+func (t *termImpl) Finish() {
 	if !t.running {
 		return
 	}
@@ -91,29 +113,29 @@ func (t *Term) Finish() {
 	t.out.Close()
 }
 
-func (t *Term) Width() int {
+func (t *termImpl) Width() int {
 	return t.width
 }
 
-func (t *Term) Height() int {
+func (t *termImpl) Height() int {
 	return t.height
 }
 
-func (t *Term) WriteZeroWidthString(s string) {
+func (t *termImpl) WriteZeroWidthString(s string) {
 	t.buffer.WriteString(s)
 }
 
-func (t *Term) WriteZeroWidthBytes(bytes []byte) {
+func (t *termImpl) WriteZeroWidthBytes(bytes []byte) {
 	t.buffer.Write(bytes)
 }
 
-func (t *Term) MoveTo(newX, newY int) {
+func (t *termImpl) MoveTo(newX, newY int) {
 	t.x = newX
 	t.y = newY
 	t.UpdateCursor()
 }
 
-func (t *Term) Tab() {
+func (t *termImpl) Tab() {
 	t.x += 8 - (t.x % 8)
 	if t.x >= t.width {
 		t.NewLine()
@@ -122,22 +144,22 @@ func (t *Term) Tab() {
 	t.UpdateCursor()
 }
 
-func (t *Term) UpdateCursor() {
+func (t *termImpl) UpdateCursor() {
 	t.WriteZeroWidthString(fmt.Sprintf("\x1b[%d;%dH", t.y+1, t.x+1))
 }
 
-func (t *Term) CanWrite() bool {
+func (t *termImpl) CanWrite() bool {
 	return t.CanWriteChars(1)
 }
 
-func (t *Term) CanWriteChars(charWidth int) bool {
+func (t *termImpl) CanWriteChars(charWidth int) bool {
 	if t.y < t.height-1 {
 		return true
 	}
 	return t.x+charWidth <= t.width
 }
 
-func (t *Term) NewLine() bool {
+func (t *termImpl) NewLine() bool {
 	t.y++
 	t.x = 0
 	if t.y < t.height {
@@ -150,7 +172,7 @@ func (t *Term) NewLine() bool {
 	return false
 }
 
-func (t *Term) WriteString(s string) bool {
+func (t *termImpl) WriteString(s string) bool {
 	for _, ch := range s {
 		if t.WriteRune(ch) {
 			continue
@@ -160,7 +182,7 @@ func (t *Term) WriteString(s string) bool {
 	return true
 }
 
-func (t *Term) WriteRune(ch rune) bool {
+func (t *termImpl) WriteRune(ch rune) bool {
 	runeWidth := RuneWidth(ch)
 	if t.x+runeWidth > t.width {
 		if !t.NewLine() {
@@ -175,7 +197,7 @@ func (t *Term) WriteRune(ch rune) bool {
 	return false
 }
 
-func (t *Term) Flush() error {
+func (t *termImpl) Flush() error {
 	_, err := t.out.Write(t.buffer.Bytes())
 	return err
 }

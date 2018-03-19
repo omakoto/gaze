@@ -6,7 +6,7 @@ import (
 	"syscall"
 )
 
-func initTerm(t *Term) error {
+func initTerm(t *termImpl) error {
 	t.quitChan = make(chan bool, 1)
 	t.readBuffer = make([]byte, 1)
 	t.readBytes = make(chan ByteAndError, 1)
@@ -70,7 +70,7 @@ func restoreTermios(file *os.File, orig *syscall.Termios) error {
 	return tcsetattr(file.Fd(), orig)
 }
 
-func deinitTerm(t *Term) error {
+func deinitTerm(t *termImpl) error {
 	if t.quitChan != nil {
 		t.quitChan <- true // Stop the reader
 		close(t.quitChan)
