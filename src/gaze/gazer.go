@@ -19,13 +19,9 @@ type Gazer struct {
 	// title is a human readable version of the command line.
 	title string
 
-	term termio.Term
-
-	// lastStartTime is the start time of the last run.
 	lastStartTime time.Time
 
-	// nextExpectedTime is the time when the next run should start if the precise option is on.
-	nextExpectedTime time.Time
+	term termio.Term
 
 	// headerBuffer is a cached buffer to build the header line.
 	headerBuffer *bytes.Buffer
@@ -62,23 +58,12 @@ func NewGazer(options Options) *Gazer {
 		headerBuffer: &bytes.Buffer{},
 		csiBuffer:    &bytes.Buffer{},
 
-		nextExpectedTime: clock.Now(),
-
 		fetcher: fetcher,
 	}
 }
 
 func (g *Gazer) Finish() {
 	g.term.Finish()
-}
-
-func (g *Gazer) Reinit() error {
-	g.nextExpectedTime = g.nextExpectedTime.Add(g.options.Interval)
-	g.lastStartTime = g.clock.Now()
-
-	g.term.Clear()
-
-	return nil
 }
 
 func getHeader(hbuf *bytes.Buffer, width int, interval time.Duration, now time.Time, title string) string {
@@ -125,29 +110,34 @@ func (g *Gazer) RunLoop(times int) error {
 		return nil
 	}
 	var pausing bool
-	var forceRefresh bool
+	lastExpectedStartTime := g.clock.Now()
+	var lastEndTime time.Time
+
+	var baseTime func() time.Time
+	if g.options.Precise {
+		baseTime = func() time.Time { return lastExpectedStartTime }
+	} else {
+		baseTime = func() time.Time { return lastEndTime }
+	}
+	forceRefresh := func() {
+		lastExpectedStartTime = g.clock.Now()
+	}
+
 refresh:
 	for i := 0; ; {
-		if forceRefresh {
-			g.nextExpectedTime = g.clock.Now()
-			forceRefresh = false
-		}
 		err := g.RunOnce()
 		if err != nil {
 			return err
 		}
+		lastEndTime = g.clock.Now()
+
 		i++
 		if times > 0 && i >= times {
 			break
 		}
-		lastEndTime := g.clock.Now()
 
-		var nextTime time.Time
-		if g.options.Precise {
-			nextTime = g.nextExpectedTime
-		} else {
-			nextTime = lastEndTime.Add(g.options.Interval)
-		}
+		nextTime := baseTime().Add(g.options.Interval)
+		lastExpectedStartTime = nextTime
 
 		// TODO Extract the control logic, clean it up and write tests.
 
@@ -166,23 +156,23 @@ refresh:
 				return nil
 			}
 			if key == '\n' {
-				forceRefresh = true
+				forceRefresh()
 				continue refresh
 			}
 			if key == '-' {
 				g.options.SetInterval(g.options.Interval - time.Millisecond*500)
-				forceRefresh = true
+				forceRefresh()
 				continue refresh
 			}
 			if key == '+' {
 				g.options.SetInterval(g.options.Interval + time.Millisecond*500)
-				forceRefresh = true
+				forceRefresh()
 				continue refresh
 			}
 			if key == ' ' {
 				if pausing {
 					pausing = false
-					forceRefresh = true
+					forceRefresh()
 					continue refresh
 				}
 				pausing = true
@@ -209,7 +199,8 @@ func (g *Gazer) showResumeHelp() {
 }
 
 func (g *Gazer) RunOnce() error {
-	g.Reinit()
+	g.lastStartTime = g.clock.Now()
+	g.term.Clear()
 
 	rd, err := g.fetcher()
 	common.Check(err, "StartCommand() failed")
