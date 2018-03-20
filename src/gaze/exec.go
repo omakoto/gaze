@@ -3,7 +3,6 @@ package gaze
 import (
 	"github.com/omakoto/gaze/src/common"
 	"io"
-	"os"
 	"os/exec"
 )
 
@@ -28,7 +27,7 @@ func (r *startCommandReader) Close() error {
 		return err
 	}
 
-	r.cmd.Process.Signal(os.Interrupt)
+	// r.cmd.Process.Signal(os.Interrupt)
 
 	return r.cmd.Wait()
 }
@@ -38,6 +37,8 @@ var _ = io.ReadCloser((*startCommandReader)(nil))
 func StartCommand(commandLine []string) (io.ReadCloser, error) {
 	common.Debugf("Executing: %v...\n", commandLine)
 	cmd := exec.Command(commandLine[0], commandLine[1:]...)
+
+	cmd.Stdin = nil
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
