@@ -16,7 +16,7 @@ func init() {
 }
 
 func getBinEnv(suffix string) string {
-	return os.Getenv(fmt.Sprintf("%s_%s", strings.ToUpper(MustGetBinName()), suffix))
+	return os.Getenv(fmt.Sprintf("%s_%s", strings.Replace(strings.ToUpper(MustGetBinName()), "-", "_", -1), suffix))
 }
 
 func Debug(message string) {
