@@ -7,6 +7,8 @@ import (
 	"runtime/debug"
 )
 
+var Quiet = false
+
 // MustGetBinName returns the filename of the currently running executable.
 func MustGetBinName() string {
 	me, err := os.Executable()
@@ -21,8 +23,10 @@ func maybePrintStackTrack() {
 }
 
 func Fatal(message string) {
-	Warn(message)
-	maybePrintStackTrack()
+	if !Quiet {
+		Warn(message)
+		maybePrintStackTrack()
+	}
 	ExitFailure()
 }
 
@@ -31,7 +35,9 @@ func Fatalf(format string, args ...interface{}) {
 }
 
 func Warn(message string) {
-	fmt.Fprintf(os.Stderr, "%s: %s\n", MustGetBinName(), message)
+	if !Quiet {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", MustGetBinName(), message)
+	}
 }
 
 func Warnf(format string, args ...interface{}) {
