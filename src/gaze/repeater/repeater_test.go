@@ -1,7 +1,7 @@
 package repeater
 
 import (
-	"github.com/omakoto/gaze/src/termio"
+	"github.com/omakoto/go-common/src/termio"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"

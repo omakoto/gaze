@@ -1,7 +1,7 @@
 package gaze
 
 import (
-	"github.com/omakoto/gaze/src/common"
+	"github.com/omakoto/go-common/src/common"
 	"io"
 	"os/exec"
 )

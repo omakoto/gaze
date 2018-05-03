@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/omakoto/gaze/src/common"
 	"github.com/omakoto/gaze/src/gaze"
+	"github.com/omakoto/go-common/src/common"
 	"github.com/pborman/getopt/v2"
 	"math"
 	"os"

@@ -1,7 +1,7 @@
 package repeater
 
 import (
-	"github.com/omakoto/gaze/src/common"
+	"github.com/omakoto/go-common/src/common"
 	"time"
 )
 
