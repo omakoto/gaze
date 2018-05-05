@@ -2,7 +2,7 @@ package gaze
 
 import (
 	"bytes"
-	"github.com/omakoto/zenlog-go/zenlog/shell"
+	"github.com/omakoto/go-common/src/shell"
 	"os"
 	"time"
 )
