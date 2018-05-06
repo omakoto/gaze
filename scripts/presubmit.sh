@@ -2,7 +2,7 @@
 
 set -e
 
-"${0%/*}"/build.sh
+. "${0%/*}"/build.sh
 
 #go get github.com/golang/lint/golint                        # Linter
 #go get honnef.co/go/tools/cmd/megacheck                     # Badass static analyzer/linter
@@ -16,7 +16,7 @@ fi
 
 go test -v -race ./...                   # Run all the tests with the race detector enabled
 
-"${0%/*}"/../tests/testall.sh
+./tests/testall.sh
 
 echo "Running extra checks..."
 go vet ./...                             # go vet is the official Go static analyzer
