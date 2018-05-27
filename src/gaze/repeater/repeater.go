@@ -25,7 +25,6 @@ func NewRepeater(target Repeatable) *Repeater {
 	return &Repeater{target}
 }
 
-// TODO Test
 func (r *Repeater) Loop(precise bool, times int, reader ByteReader, clock common.Clock) error {
 	if times == 0 {
 		return nil
