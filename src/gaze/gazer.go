@@ -6,6 +6,7 @@ import (
 	"github.com/omakoto/gaze/src/gaze/repeater"
 	"github.com/omakoto/go-common/src/common"
 	"github.com/omakoto/go-common/src/termio"
+	"github.com/omakoto/go-common/src/utils"
 	"io"
 	"time"
 )
@@ -33,7 +34,7 @@ type Gazer struct {
 	// fetcher abstracts how Gazer should execute a command and read its output.
 	fetcher func() (io.ReadCloser, error)
 
-	clock common.Clock
+	clock utils.Clock
 }
 
 type gazerAsRepeatable struct {
@@ -68,7 +69,7 @@ func NewGazer(options Options) *Gazer {
 	fetcher := func() (io.ReadCloser, error) {
 		return StartCommand(execCommand)
 	}
-	clock := common.NewClock()
+	clock := utils.NewClock()
 	term, err := termio.NewTerm(options.Input, options.Output, options.ForcedTerminalWidth, options.ForcedTerminalHeight)
 	if err != nil {
 		common.Fatalf("Unable to initialize terminal.")

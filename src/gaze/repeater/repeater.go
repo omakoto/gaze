@@ -1,7 +1,7 @@
 package repeater
 
 import (
-	"github.com/omakoto/go-common/src/common"
+	"github.com/omakoto/go-common/src/utils"
 	"time"
 )
 
@@ -25,7 +25,7 @@ func NewRepeater(target Repeatable) *Repeater {
 	return &Repeater{target}
 }
 
-func (r *Repeater) Loop(precise bool, times int, reader ByteReader, clock common.Clock) error {
+func (r *Repeater) Loop(precise bool, times int, reader ByteReader, clock utils.Clock) error {
 	if times == 0 {
 		return nil
 	}
