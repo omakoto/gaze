@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/omakoto/gaze.svg?branch=master)](https://travis-ci.org/omakoto/gaze)
 # Gaze
 Gaze is a "watch" replacement that supports 8bit / 24bit colors.
 
