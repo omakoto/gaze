@@ -3,8 +3,8 @@ Gaze is a "watch" replacement that supports 8bit / 24bit colors.
 
 ## Installation
 
-```sh
-go install github.com/omakoto/gaze/src/cmd/gaze
+```bash
+go get -u github.com/omakoto/gaze/src/cmd/gaze
 ```
 
 ## Supported options
