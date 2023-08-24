@@ -1,0 +1,7 @@
+github.com/omakoto/go-common v0.0.0-20230823052316-200605c4c0d0 h1:NnC0R0mi5OGAP1s0aWBqKppycTri5AGXigBTjS34NE0=
+github.com/omakoto/go-common v0.0.0-20230823052316-200605c4c0d0/go.mod h1:S0LSmmdEFhCp8XJLc3YPFWK7W4qcyRgyfrGBsX/tzMo=
+github.com/pborman/getopt v1.1.0 h1:eJ3aFZroQqq0bWmraivjQNt6Dmm5M0h2JcDW38/Azb0=
+github.com/pborman/getopt v1.1.0/go.mod h1:FxXoW1Re00sQG/+KIkuSqRL/LwQgSkv7uyac+STFsbk=
+github.com/pborman/getopt/v2 v2.1.0 h1:eNfR+r+dWLdWmV8g5OlpyrTYHkhVNxHBdN2cCrJmOEA=
+github.com/pborman/getopt/v2 v2.1.0/go.mod h1:4NtW75ny4eBw9fO1bhtNdYTlZKYX5/tBLtsOpwKIKd0=
+github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
