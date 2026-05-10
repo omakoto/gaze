@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/omakoto/gaze/src/gaze"
 	"github.com/omakoto/go-common/src/common"
 	"github.com/pborman/getopt/v2"
@@ -13,13 +14,13 @@ var (
 	help  = getopt.BoolLong("help", 'h', "Show this help.")
 	debug = getopt.BoolLong("debug", 'd', "Enable debug output.")
 
-	precise = getopt.BoolLong("precise", 'p', "Attempt run command in precise intervals.")
-	noTitle = getopt.BoolLong("no-title", 't', "Turn off header.")
-	exec    = getopt.BoolLong("exec", 'x', "Pass command to exec instead of \"sh -c\".")
-	times   = getopt.IntLong("repeat", 'r', -1, "Repeat command N times and finish.")
+	precise = getopt.BoolLong("precise", 'p', "Attempt to run command at precise intervals (measure from start, not end).")
+	noTitle = getopt.BoolLong("no-title", 't', "Hide the header line.")
+	exec    = getopt.BoolLong("exec", 'x', "Run command directly via exec(2) instead of \"sh -c\".")
+	times   = getopt.IntLong("repeat", 'r', -1, "Run command N times, then exit.")
 
-	width  = getopt.IntLong("width", 0, 0, "Specify terminal width. (default: auto)")
-	height = getopt.IntLong("height", 0, 0, "Specify terminal height. (default: auto)")
+	width  = getopt.IntLong("width", 0, 0, "Override terminal width. (default: auto-detect)")
+	height = getopt.IntLong("height", 0, 0, "Override terminal height. (default: auto-detect)")
 
 	_ = getopt.BoolLong("color", 'c', "Ignored. ANSI colors are always preserved.")
 
@@ -27,7 +28,40 @@ var (
 )
 
 func init() {
-	getopt.FlagLong(&interval, "interval", 'n', "Specify interval in seconds.")
+	getopt.FlagLong(&interval, "interval", 'n', "Repeat interval in seconds. (default: 2.0, minimum: 0.1)")
+	getopt.SetParameters("COMMAND [ARGS...]")
+	getopt.SetUsage(printHelp)
+}
+
+func printHelp() {
+	fmt.Fprintf(os.Stderr, `Gaze - a watch(1) replacement with full ANSI color support.
+
+Repeatedly runs COMMAND and displays its output, refreshing the screen each
+cycle. Unlike GNU watch, 8-bit and 24-bit colors are always preserved.
+
+  https://github.com/omakoto/gaze
+
+Usage:
+  gaze [OPTIONS] COMMAND [ARGS...]
+  gaze [OPTIONS] 'shell pipeline | with | pipes'
+
+Examples:
+  gaze df -h
+  gaze -n 0.5 cat /proc/loadavg
+  gaze -r 10 date
+  gaze 'ps aux | grep python'
+
+Options:
+`)
+	getopt.CommandLine.PrintOptions(os.Stderr)
+	fmt.Fprintf(os.Stderr, `
+Keyboard shortcuts (while running):
+  Enter    Force an immediate refresh
+  Space    Toggle pause / resume auto-refresh
+  +        Increase interval by 0.5s
+  -        Decrease interval by 0.5s
+  q        Quit
+`)
 }
 
 func main() {

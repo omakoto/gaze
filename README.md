@@ -1,38 +1,76 @@
-[![Build Status](https://travis-ci.org/omakoto/gaze.svg?branch=master)](https://travis-ci.org/omakoto/gaze)
 # Gaze
-Gaze is a "watch" replacement that supports 8bit / 24bit colors.
+
+Gaze is a `watch` replacement that preserves 8-bit and 24-bit ANSI colors in command output. It repeatedly runs a command and displays the result, with interactive controls for pausing, refreshing, and adjusting the interval on the fly.
 
 ## Installation
 
 ```bash
-go get -u github.com/omakoto/gaze/src/cmd/gaze
+go install github.com/omakoto/gaze/src/cmd/gaze@latest
 ```
 
-## Supported options
+## Usage
 
-For now, only the following options are supported.
+```
+gaze [OPTIONS] COMMAND [ARGS...]
+```
 
-Short|Long|Description
------|----|-----------
--n|--interval=FLOAT |Run interval in seconds. 
--p|--precise|Attempt run command in precise intervals.
--r|--repeat=N|Repeat command N times and finish.
--t|--no-title|Turn off header.
--x|--exec|Pass command to exec instead of "sh -c".
--c|--color|Ignored. ANSI colors are always preserved.
+**Examples:**
 
-## Unsupported options
+```bash
+# Run every 2 seconds (default)
+gaze ls -la
 
-The following options from GNU watch are not supported yet.
+# Run every 0.5 seconds
+gaze -n 0.5 cat /proc/loadavg
 
-Short|Long|Description
------|----|-----------
--b|--beep|Beep if command has a non-zero exit.
--d|--differences[=permanent]|Highlight changes between updates.
--e|--errexit|Exit if command has a non-zero exit.
--g|--chgexit|Exit when output from command changes.
+# Run exactly 10 times, then exit
+gaze -r 10 date
 
-## TODOs
- - Handle interrupts gracefully and restore termios.
- - termio isn't reusable within the same process because it closes in and out (to finish the reader goroutine).
- - Extract the keyboard control logic out and add tests. 
+# Pass a shell pipeline
+gaze 'ps aux | grep python'
+
+# Skip the header line
+gaze -t df -h
+```
+
+## Options
+
+Short | Long | Description
+------|------|------------
+`-n` | `--interval=SECONDS` | Repeat interval in seconds (default: 2.0, minimum: 0.1)
+`-p` | `--precise` | Use precise intervals: measure from start of run, not end
+`-r` | `--repeat=N` | Run command N times, then exit
+`-t` | `--no-title` | Hide the header line
+`-x` | `--exec` | Run command directly via exec(2) instead of `sh -c`
+`-c` | `--color` | Ignored — ANSI colors are always preserved
+    | `--width=N` | Override terminal width (default: auto-detect)
+    | `--height=N` | Override terminal height (default: auto-detect)
+
+### Precise vs. normal interval timing
+
+By default, the interval is measured from when a command finishes to when the next one starts, so slow commands space out runs further. With `--precise`, gaze targets consistent wall-clock start times regardless of how long the command takes.
+
+## Interactive controls
+
+While gaze is running, you can use these keys:
+
+Key | Action
+----|-------
+`Enter` | Force an immediate refresh
+`Space` | Toggle pause / resume
+`+` | Increase interval by 0.5s
+`-` | Decrease interval by 0.5s
+`q` | Quit
+
+When paused, `Enter` triggers a single manual refresh without resuming auto-refresh.
+
+## Comparison with GNU watch
+
+Gaze supports ANSI colors natively (no flags needed). The following GNU watch options are **not yet implemented**:
+
+Short | Long | Description
+------|------|------------
+`-b` | `--beep` | Beep on non-zero exit
+`-d` | `--differences` | Highlight changes between updates
+`-e` | `--errexit` | Exit on non-zero exit
+`-g` | `--chgexit` | Exit when output changes
